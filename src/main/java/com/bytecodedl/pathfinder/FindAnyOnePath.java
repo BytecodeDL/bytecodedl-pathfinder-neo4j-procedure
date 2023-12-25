@@ -6,6 +6,7 @@ import org.neo4j.graphalgo.WeightedPath;
 import org.neo4j.graphalgo.impl.util.PathImpl;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.traversal.Evaluators;
+import org.neo4j.graphdb.traversal.InitialBranchState;
 import org.neo4j.graphdb.traversal.Traverser;
 import org.neo4j.graphdb.traversal.Uniqueness;
 import org.neo4j.logging.Log;
@@ -37,10 +38,10 @@ public class FindAnyOnePath {
         final Traverser traverse = tx.traversalDescription()
                 //.depthFirst()
                 .breadthFirst()
-                .evaluator(new FindAnyOneEvaluator(end, maxLength, minLength))
-                //.expand(new FindAnyOneExpander())
-                .expand(PathExpanders.forTypeAndDirection( RelationshipType.withName("Call"), Direction.OUTGOING ))
-                .uniqueness(Uniqueness.NODE_PATH)
+                .evaluator(new FindAnyOneEvaluator(end, maxLength, minLength, log))
+                .expand(new FindAnyOneExpander(PathExpanders.forTypeAndDirection(RelationshipType.withName("Call"), Direction.OUTGOING ), log), new InitialBranchState.State<Boolean>(false, false))
+                //.expand(PathExpanders.forTypeAndDirection( RelationshipType.withName("Call"), Direction.OUTGOING ))
+                .uniqueness(Uniqueness.NODE_GLOBAL)
                 .traverse(start);
 
         Optional<Path> optionalPath = StreamSupport
@@ -58,36 +59,36 @@ public class FindAnyOnePath {
         }
     }
 
-    @Procedure(name = "bytecodedl.dijkstra", mode = Mode.READ)
-    @Description("find one path from start to end between minlength and maxlength, also show first multi dispatch")
-    public Stream<PathRecord> dijkstra(
-            @Name("startNode") Node startNode,
-            @Name("endNode") Node endNode,
-            @Name("weightPropertyName") String weightPropertyName,
-            @Name(value = "defaultWeight", defaultValue = "NaN") double defaultWeight,
-            @Name(value = "numberOfWantedPaths", defaultValue = "1") long numberOfWantedPaths
-    ){
-        PathFinder<WeightedPath> algo = GraphAlgoFactory.dijkstra(
-                buildPathExpander(),
-                (relationship, direction) -> Util.toDouble(relationship.getProperty(weightPropertyName, defaultWeight)),
-                (int)numberOfWantedPaths
-        );
-        Iterable<WeightedPath> paths = algo.findAllPaths(startNode, endNode);
-
-        Optional<WeightedPath> optionalPath = StreamSupport
-                .stream(paths.spliterator(), false).findFirst();
-
-        if (optionalPath.isPresent()){
-            Path path = optionalPath.get();
-            List<Relationship> multiDispatchRelationship = getFirstMultiDispatch(path, "insn");
-            List<Path> pathList = multiDispatchRelationship.stream().map(this::relationShipToPath).collect(Collectors.toList());
-            pathList.add(path);
-            return pathList.stream().map(PathRecord::new);
-        }else {
-            return StreamSupport
-                    .stream(paths.spliterator(), false).map(PathRecord::new);
-        }
-    }
+//    @Procedure(name = "bytecodedl.dijkstra", mode = Mode.READ)
+//    @Description("find one path from start to end between minlength and maxlength, also show first multi dispatch")
+//    public Stream<PathRecord> dijkstra(
+//            @Name("startNode") Node startNode,
+//            @Name("endNode") Node endNode,
+//            @Name("weightPropertyName") String weightPropertyName,
+//            @Name(value = "defaultWeight", defaultValue = "NaN") double defaultWeight,
+//            @Name(value = "numberOfWantedPaths", defaultValue = "1") long numberOfWantedPaths
+//    ){
+//        PathFinder<WeightedPath> algo = GraphAlgoFactory.dijkstra(
+//                buildPathExpander(),
+//                (relationship, direction) -> Util.toDouble(relationship.getProperty(weightPropertyName, defaultWeight)),
+//                (int)numberOfWantedPaths
+//        );
+//        Iterable<WeightedPath> paths = algo.findAllPaths(startNode, endNode);
+//
+//        Optional<WeightedPath> optionalPath = StreamSupport
+//                .stream(paths.spliterator(), false).findFirst();
+//
+//        if (optionalPath.isPresent()){
+//            Path path = optionalPath.get();
+//            List<Relationship> multiDispatchRelationship = getFirstMultiDispatch(path, "insn");
+//            List<Path> pathList = multiDispatchRelationship.stream().map(this::relationShipToPath).collect(Collectors.toList());
+//            pathList.add(path);
+//            return pathList.stream().map(PathRecord::new);
+//        }else {
+//            return StreamSupport
+//                    .stream(paths.spliterator(), false).map(PathRecord::new);
+//        }
+//    }
 
     public PathExpander<Double> buildPathExpander() {
         //        PathExpanderBuilder builder = PathExpanderBuilder.allTypesAndDirections();
