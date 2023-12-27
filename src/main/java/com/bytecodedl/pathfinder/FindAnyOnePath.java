@@ -1,15 +1,11 @@
 package com.bytecodedl.pathfinder;
 
-import org.neo4j.graphalgo.GraphAlgoFactory;
-import org.neo4j.graphalgo.PathFinder;
-import org.neo4j.graphalgo.WeightedPath;
 import org.neo4j.graphalgo.impl.util.PathImpl;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.traversal.*;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.*;
 
-import java.nio.DoubleBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -31,11 +27,15 @@ public class FindAnyOnePath {
 
     @Procedure(name = "bytecodedl.findOnePath", mode = Mode.READ)
     @Description("find one path from start to end under maxlength, also show first multi dispatch")
-    public Stream<PathRecord> findOnePath(@Name("start") Node start, @Name("end") Node end, @Name("maxLength") long maxLength, @Name("callProperty") String callProperty){
+    public Stream<PathRecord> findOnePath(@Name("start") Node start, @Name("end") Node end, @Name("maxLength") long maxLength, @Name(value = "relationshipType", defaultValue = "Call") String relationType, @Name(value = "callProperty", defaultValue = "insn") String callProperty){
         final Traverser traverser = tx.traversalDescription()
                 .breadthFirst()
-                .evaluator(Evaluators.toDepth((int)maxLength))
-                .expand(PathExpanders.forTypeAndDirection(RelationshipType.withName("Call"), Direction.OUTGOING ))
+                .evaluator(new FindAnyOneEvaluator(end, maxLength))
+                .expand(
+                        PathExpanderBuilder.empty()
+                                .add(RelationshipType.withName(relationType), Direction.OUTGOING)
+                                // filter non delete relation
+                                .addRelationshipFilter(relationship -> relationship.getProperty("is_deleted", "0").equals("0")).build())
                 .uniqueness(Uniqueness.NODE_GLOBAL)
                 .traverse(start);
 
@@ -44,9 +44,9 @@ public class FindAnyOnePath {
 
     @Procedure(name = "bytecodedl.biFindOnePath", mode = Mode.READ)
     @Description("find one path from start to end between minlength and maxlength, also show first multi dispatch")
-    public Stream<PathRecord> biFindOnePath(@Name("start") Node start, @Name("end") Node end, @Name("maxLength") long maxLength, @Name("callProperty") String callProperty){
+    public Stream<PathRecord> biFindOnePath(@Name("start") Node start, @Name("end") Node end, @Name("maxLength") long maxLength, @Name(value = "relationshipType", defaultValue = "Call") String relationType, @Name(value = "callProperty", defaultValue = "insn") String callProperty){
         TraversalDescription base = tx.traversalDescription().depthFirst().uniqueness(Uniqueness.RELATIONSHIP_GLOBAL);
-        PathExpander expander = PathExpanders.forTypeAndDirection(RelationshipType.withName("Call"), Direction.OUTGOING );
+        PathExpander expander = PathExpanderBuilder.empty().add(RelationshipType.withName(relationType), Direction.OUTGOING).addRelationshipFilter(relationship -> relationship.getProperty("is_deleted", "0").equals("0")).build();
         int maxDepth = (int) maxLength;
 
         final Traverser traverser = tx.bidirectionalTraversalDescription()
