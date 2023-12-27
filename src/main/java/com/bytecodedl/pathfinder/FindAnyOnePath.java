@@ -32,26 +32,14 @@ public class FindAnyOnePath {
     @Procedure(name = "bytecodedl.findOnePath", mode = Mode.READ)
     @Description("find one path from start to end under maxlength, also show first multi dispatch")
     public Stream<PathRecord> findOnePath(@Name("start") Node start, @Name("end") Node end, @Name("maxLength") long maxLength, @Name("callProperty") String callProperty){
-        final Traverser traverse = tx.traversalDescription()
+        final Traverser traverser = tx.traversalDescription()
                 .breadthFirst()
                 .evaluator(Evaluators.toDepth((int)maxLength))
                 .expand(PathExpanders.forTypeAndDirection(RelationshipType.withName("Call"), Direction.OUTGOING ))
                 .uniqueness(Uniqueness.NODE_GLOBAL)
                 .traverse(start);
 
-        Optional<Path> optionalPath = StreamSupport
-                .stream(traverse.spliterator(), false).findFirst();
-
-        if (optionalPath.isPresent()){
-            Path path = optionalPath.get();
-            List<Relationship> multiDispatchRelationship = getFirstMultiDispatch(path, callProperty);
-            List<Path> pathList = multiDispatchRelationship.stream().map(this::relationShipToPath).collect(Collectors.toList());
-            pathList.add(path);
-            return pathList.stream().map(PathRecord::new);
-        }else {
-            return StreamSupport
-                    .stream(traverse.spliterator(), false).map(PathRecord::new);
-        }
+        return returnWithFirstMultiDispatch(traverser, callProperty);
     }
 
     @Procedure(name = "bytecodedl.biFindOnePath", mode = Mode.READ)
@@ -61,7 +49,7 @@ public class FindAnyOnePath {
         PathExpander expander = PathExpanders.forTypeAndDirection(RelationshipType.withName("Call"), Direction.OUTGOING );
         int maxDepth = (int) maxLength;
 
-        final Traverser traverse = tx.bidirectionalTraversalDescription()
+        final Traverser traverser = tx.bidirectionalTraversalDescription()
                 .startSide(
                         base.expand(expander)
                                 .evaluator(Evaluators.toDepth(maxDepth / 2))
@@ -71,19 +59,23 @@ public class FindAnyOnePath {
                 )
                 .traverse(start, end);
 
+        return returnWithFirstMultiDispatch(traverser, callProperty);
+
+    }
+
+    public Stream<PathRecord> returnWithFirstMultiDispatch(Traverser traverser, String callProperty){
         Optional<Path> optionalPath = StreamSupport
-                .stream(traverse.spliterator(), false).findFirst();
+                .stream(traverser.spliterator(), false).findFirst();
 
         if (optionalPath.isPresent()){
             Path path = optionalPath.get();
-//            System.out.println(path);
             List<Relationship> multiDispatchRelationship = getFirstMultiDispatch(path, callProperty);
             List<Path> pathList = multiDispatchRelationship.stream().map(this::relationShipToPath).collect(Collectors.toList());
             pathList.add(path);
             return pathList.stream().map(PathRecord::new);
         }else {
             return StreamSupport
-                    .stream(traverse.spliterator(), false).map(PathRecord::new);
+                    .stream(traverser.spliterator(), false).map(PathRecord::new);
         }
     }
 
