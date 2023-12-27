@@ -7,6 +7,7 @@ CREATE (D:Method {method:'methodd'})
 CREATE (E:Method {method:'methode'})
 CREATE (F:Method {method:'methodf'})
 CREATE (S:Sink {method:'sink'})
+CREATE (S1:Sink1 {method:'sink1'})
 
 CREATE (A)-[:Call {insn:'insnAB'}]->(B),
        (A)-[:Call {insn:'insnAC'}]->(C0),
@@ -18,7 +19,8 @@ CREATE (A)-[:Call {insn:'insnAB'}]->(B),
        (D)-[:Call {insn:'insnDS'}]->(S),
        (B)-[:Call {insn:'insnBE'}]->(E),
        (E)-[:Call {insn:'insnEF'}]->(F),
-       (F)-[:Call {insn:'insnFS'}]->(S)
+       (F)-[:Call {insn:'insnFS'}]->(S),
+       (F)-[:Call {insn:'insnFS1'}]->(S1)
 
 
 

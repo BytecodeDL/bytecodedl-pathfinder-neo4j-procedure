@@ -5,10 +5,7 @@ import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphalgo.WeightedPath;
 import org.neo4j.graphalgo.impl.util.PathImpl;
 import org.neo4j.graphdb.*;
-import org.neo4j.graphdb.traversal.Evaluators;
-import org.neo4j.graphdb.traversal.InitialBranchState;
-import org.neo4j.graphdb.traversal.Traverser;
-import org.neo4j.graphdb.traversal.Uniqueness;
+import org.neo4j.graphdb.traversal.*;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.*;
 
@@ -33,14 +30,12 @@ public class FindAnyOnePath {
 
 
     @Procedure(name = "bytecodedl.findOnePath", mode = Mode.READ)
-    @Description("find one path from start to end between minlength and maxlength, also show first multi dispatch")
-    public Stream<PathRecord> findOnePath(@Name("start") Node start, @Name("end") Node end, @Name("maxLength") String maxLength, @Name("minLength") String minLength, @Name("callProperty") String callProperty){
+    @Description("find one path from start to end under maxlength, also show first multi dispatch")
+    public Stream<PathRecord> findOnePath(@Name("start") Node start, @Name("end") Node end, @Name("maxLength") long maxLength, @Name("callProperty") String callProperty){
         final Traverser traverse = tx.traversalDescription()
-                //.depthFirst()
                 .breadthFirst()
-                .evaluator(new FindAnyOneEvaluator(end, maxLength, minLength, log))
-                .expand(new FindAnyOneExpander(PathExpanders.forTypeAndDirection(RelationshipType.withName("Call"), Direction.OUTGOING ), log), new InitialBranchState.State<Boolean>(false, false))
-                //.expand(PathExpanders.forTypeAndDirection( RelationshipType.withName("Call"), Direction.OUTGOING ))
+                .evaluator(Evaluators.toDepth((int)maxLength))
+                .expand(PathExpanders.forTypeAndDirection(RelationshipType.withName("Call"), Direction.OUTGOING ))
                 .uniqueness(Uniqueness.NODE_GLOBAL)
                 .traverse(start);
 
@@ -59,44 +54,37 @@ public class FindAnyOnePath {
         }
     }
 
-//    @Procedure(name = "bytecodedl.dijkstra", mode = Mode.READ)
-//    @Description("find one path from start to end between minlength and maxlength, also show first multi dispatch")
-//    public Stream<PathRecord> dijkstra(
-//            @Name("startNode") Node startNode,
-//            @Name("endNode") Node endNode,
-//            @Name("weightPropertyName") String weightPropertyName,
-//            @Name(value = "defaultWeight", defaultValue = "NaN") double defaultWeight,
-//            @Name(value = "numberOfWantedPaths", defaultValue = "1") long numberOfWantedPaths
-//    ){
-//        PathFinder<WeightedPath> algo = GraphAlgoFactory.dijkstra(
-//                buildPathExpander(),
-//                (relationship, direction) -> Util.toDouble(relationship.getProperty(weightPropertyName, defaultWeight)),
-//                (int)numberOfWantedPaths
-//        );
-//        Iterable<WeightedPath> paths = algo.findAllPaths(startNode, endNode);
-//
-//        Optional<WeightedPath> optionalPath = StreamSupport
-//                .stream(paths.spliterator(), false).findFirst();
-//
-//        if (optionalPath.isPresent()){
-//            Path path = optionalPath.get();
-//            List<Relationship> multiDispatchRelationship = getFirstMultiDispatch(path, "insn");
-//            List<Path> pathList = multiDispatchRelationship.stream().map(this::relationShipToPath).collect(Collectors.toList());
-//            pathList.add(path);
-//            return pathList.stream().map(PathRecord::new);
-//        }else {
-//            return StreamSupport
-//                    .stream(paths.spliterator(), false).map(PathRecord::new);
-//        }
-//    }
+    @Procedure(name = "bytecodedl.biFindOnePath", mode = Mode.READ)
+    @Description("find one path from start to end between minlength and maxlength, also show first multi dispatch")
+    public Stream<PathRecord> biFindOnePath(@Name("start") Node start, @Name("end") Node end, @Name("maxLength") long maxLength, @Name("callProperty") String callProperty){
+        TraversalDescription base = tx.traversalDescription().depthFirst().uniqueness(Uniqueness.RELATIONSHIP_GLOBAL);
+        PathExpander expander = PathExpanders.forTypeAndDirection(RelationshipType.withName("Call"), Direction.OUTGOING );
+        int maxDepth = (int) maxLength;
 
-    public PathExpander<Double> buildPathExpander() {
-        //        PathExpanderBuilder builder = PathExpanderBuilder.allTypesAndDirections();
+        final Traverser traverse = tx.bidirectionalTraversalDescription()
+                .startSide(
+                        base.expand(expander)
+                                .evaluator(Evaluators.toDepth(maxDepth / 2))
+                ).endSide(
+                        base.expand(expander.reverse())
+                                .evaluator(Evaluators.toDepth(maxDepth - maxDepth / 2))
+                )
+                .traverse(start, end);
 
-        PathExpanderBuilder builder = PathExpanderBuilder.empty();
-        builder = builder.add(RelationshipType.withName("Call"), Direction.OUTGOING);
-        PathExpander<Double> expander = builder.build();
-        return expander;
+        Optional<Path> optionalPath = StreamSupport
+                .stream(traverse.spliterator(), false).findFirst();
+
+        if (optionalPath.isPresent()){
+            Path path = optionalPath.get();
+//            System.out.println(path);
+            List<Relationship> multiDispatchRelationship = getFirstMultiDispatch(path, callProperty);
+            List<Path> pathList = multiDispatchRelationship.stream().map(this::relationShipToPath).collect(Collectors.toList());
+            pathList.add(path);
+            return pathList.stream().map(PathRecord::new);
+        }else {
+            return StreamSupport
+                    .stream(traverse.spliterator(), false).map(PathRecord::new);
+        }
     }
 
     public Path relationShipToPath(Relationship relationship){

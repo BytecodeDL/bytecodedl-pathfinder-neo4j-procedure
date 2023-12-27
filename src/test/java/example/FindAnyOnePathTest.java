@@ -59,7 +59,7 @@ class FindAnyOnePathTest {
             // language=cypher
             var records = session.run("match (start:Source)" +
                     "match (end: Sink) " +
-                    "call bytecodedl.findOnePath(start, end, '4', '0', 'insn') yield path return path").list();
+                    "call bytecodedl.findOnePath(start, end, 10, 'insn') yield path return path").list();
 
             for(Record record : records){
                 //System.out.println(record.get("path"));
@@ -70,7 +70,7 @@ class FindAnyOnePathTest {
     }
 
     @Test
-    void dijkstra() {
+    void biFindOnePath() {
 
         try(
                 var driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI());
@@ -79,8 +79,8 @@ class FindAnyOnePathTest {
 
             // language=cypher
             var records = session.run("match (start:Source)" +
-                    "match (end: Sink) " +
-                    "call bytecodedl.dijkstra(start, end, 'd', 1) yield path return path").list();
+                    "match (end: Sink1) " +
+                    "call bytecodedl.biFindOnePath(start, end, 10, 'insn') yield path return path").list();
 
             for(Record record : records){
                 //System.out.println(record.get("path"));
