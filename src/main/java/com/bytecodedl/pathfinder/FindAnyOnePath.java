@@ -8,6 +8,7 @@ import org.neo4j.procedure.*;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -35,7 +36,7 @@ public class FindAnyOnePath {
                         PathExpanderBuilder.empty()
                                 .add(RelationshipType.withName(relationType), Direction.OUTGOING)
                                 // filter non delete relation
-                                .addRelationshipFilter(relationship -> relationship.getProperty("is_deleted", "0").equals("0")).build())
+                                .addRelationshipFilter(relationship -> Objects.equals(relationship.getProperty("is_deleted", 0), 0)).build())
                 .uniqueness(Uniqueness.NODE_GLOBAL)
                 .traverse(start);
 
@@ -46,7 +47,7 @@ public class FindAnyOnePath {
     @Description("find one path from start to end between minlength and maxlength, also show first multi dispatch")
     public Stream<PathRecord> biFindOnePath(@Name("start") Node start, @Name("end") Node end, @Name("maxLength") long maxLength, @Name(value = "relationshipType", defaultValue = "Call") String relationType, @Name(value = "callProperty", defaultValue = "insn") String callProperty){
         TraversalDescription base = tx.traversalDescription().depthFirst().uniqueness(Uniqueness.RELATIONSHIP_GLOBAL);
-        PathExpander expander = PathExpanderBuilder.empty().add(RelationshipType.withName(relationType), Direction.OUTGOING).addRelationshipFilter(relationship -> relationship.getProperty("is_deleted", "0").equals("0")).build();
+        PathExpander expander = PathExpanderBuilder.empty().add(RelationshipType.withName(relationType), Direction.OUTGOING).addRelationshipFilter(relationship -> Objects.equals(relationship.getProperty("is_deleted", 0), 0)).build();
         int maxDepth = (int) maxLength;
 
         final Traverser traverser = tx.bidirectionalTraversalDescription()
@@ -94,7 +95,7 @@ public class FindAnyOnePath {
             }
             Object property = relationship.getProperty(callProperty);
             List<Relationship> relationships = startNode.getRelationships(relationship.getType()).stream().filter(
-                    relation ->relation.hasProperty(callProperty) && relation.getProperty(callProperty).equals(property)
+                    relation ->relation.hasProperty(callProperty) && relation.getProperty(callProperty).equals(property) && !Objects.equals(relation.getProperty("is_deleted", 0), 0)
             ).collect(Collectors.toList());
 
             if (relationships.size() > 1){
