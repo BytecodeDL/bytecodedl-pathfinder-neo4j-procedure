@@ -59,7 +59,7 @@ class FindAnyOnePathTest {
             // language=cypher
             var records = session.run("match (start:Source)" +
                     "match (end: Sink) " +
-                    "call bytecodedl.findOnePath(start, end, 10, 'insn') yield path return path").list();
+                    "call bytecodedl.findOnePath(start, end, 10) yield path return path").list();
 
             for(Record record : records){
                 //System.out.println(record.get("path"));
@@ -80,7 +80,7 @@ class FindAnyOnePathTest {
             // language=cypher
             var records = session.run("match (start:Source)" +
                     "match (end: Sink1) " +
-                    "call bytecodedl.biFindOnePath(start, end, 10, 'insn') yield path return path").list();
+                    "call bytecodedl.biFindOnePath(start, end, 10) yield path return path").list();
 
             for(Record record : records){
                 //System.out.println(record.get("path"));
