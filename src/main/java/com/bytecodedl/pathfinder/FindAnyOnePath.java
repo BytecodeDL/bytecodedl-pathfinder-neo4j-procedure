@@ -95,7 +95,7 @@ public class FindAnyOnePath {
             }
             Object property = relationship.getProperty(callProperty);
             List<Relationship> relationships = startNode.getRelationships(relationship.getType()).stream().filter(
-                    relation ->relation.hasProperty(callProperty) && relation.getProperty(callProperty).equals(property) && !Objects.equals(relation.getProperty("is_deleted", 0), 0)
+                    relation ->relation.hasProperty(callProperty) && relation.getProperty(callProperty).equals(property) && Objects.equals(relation.getProperty("is_deleted", 0), 0)
             ).collect(Collectors.toList());
 
             if (relationships.size() > 1){

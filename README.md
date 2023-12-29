@@ -35,4 +35,4 @@
   - 从[releases](https://github.com/BytecodeDL/bytecodedl-pathfinder-neo4j-procedure/releases/)下载最新的jar, 然后放到neo4j的`/var/lib/neo4j/plugins`目录
   - 然后在`/var/lib/neo4j/conf/neo4j.conf`增加一行`dbms.security.procedures.unrestricted=bytecodedl.*`
 - docker
-  - `docker pull wuxxxxx/neo4j-server:5.12.0-bytecodedl-pathfinder-1.0.0`
+  - `docker pull wuxxxxx/neo4j-server:5.12.0-bytecodedl-pathfinder-1.0.1`

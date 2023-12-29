@@ -12,7 +12,7 @@ CREATE (S1:Sink1 {method:'sink1'})
 CREATE (A)-[:Call {insn:'insnAB'}]->(B),
        (A)-[:Call {insn:'insnAC'}]->(C0),
        (A)-[:Call {insn:'insnAC'}]->(C1),
-       (A)-[:Call {insn:'insnAC'}]->(C2),
+       (A)-[:Call {insn:'insnAC', is_deleted:1}]->(C2),
        (C0)-[:Call {insn:'insnC0D'}]->(D),
        (C1)-[:Call {insn:'insnC1S'}]->(S),
        (C2)-[:Call {insn:'insnC2S'}]->(S),
